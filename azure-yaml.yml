@@ -31,7 +31,7 @@ stages:
         backendAzureRmResourceGroupName: 'OCEAN'
         backendAzureRmStorageAccountName: 'adarshmoger'
         backendAzureRmContainerName: 'maxi'
-        backendAzureRmKey: 'k8sinfra.tfstate'
+        backendAzureRmKey: 'k8sinfra1.tfstate'
 
     # -------------------------
     # 3️⃣ Terraform Validate

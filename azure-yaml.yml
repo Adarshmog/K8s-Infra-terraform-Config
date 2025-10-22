@@ -1,40 +1,49 @@
-trigger: none
+trigger: none  # Run manually for now; you can enable CI/CD triggers later
 
 stages:
 - stage: Terraform
   displayName: "Terraform Lifecycle"
   jobs:
   - job: TerraformJob
-    displayName: "Deploy Azure Resources"
+    displayName: "Deploy Azure Infrastructure"
     pool:
-      name: 'adarsh'  # self-hosted agent
+      name: 'adarsh'  # your self-hosted agent name
 
     steps:
-    # Checkout the repository
+    # -------------------------
+    # 1️⃣ Checkout Repository
+    # -------------------------
     - checkout: self
       clean: true
       fetchTags: false
+      displayName: "Checkout Terraform Repository"
 
-    # Terraform Init
+    # -------------------------
+    # 2️⃣ Terraform Init
+    # -------------------------
     - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTask@5
       displayName: "Terraform Init"
       inputs:
         provider: 'azurerm'
-        backendServiceArm: 'AzureARM'
+        command: 'init'
+        backendServiceArm: 'AzureARM'  # your existing service connection name
         backendAzureRmResourceGroupName: 'OCEAN'
         backendAzureRmStorageAccountName: 'adarshmoger'
         backendAzureRmContainerName: 'maxi'
         backendAzureRmKey: 'k8sinfra.tfstate'
-        command: 'init'
 
-    # Terraform Validate
+    # -------------------------
+    # 3️⃣ Terraform Validate
+    # -------------------------
     - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTask@5
       displayName: "Terraform Validate"
       inputs:
         provider: 'azurerm'
         command: 'validate'
 
-    # Terraform Plan
+    # -------------------------
+    # 4️⃣ Terraform Plan
+    # -------------------------
     - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTask@5
       displayName: "Terraform Plan"
       inputs:
@@ -44,9 +53,13 @@ stages:
         vars: |
           public_key_path=/home/adarshmoger/.ssh/id_rsa.pub
           private_key_path=/home/adarshmoger/.ssh/id_rsa
-        varFiles: 'terraform.tfvars'
+        varFiles: |
+          terraform.tfvars
+        workingDirectory: '$(System.DefaultWorkingDirectory)'
 
-    # Terraform Apply
+    # -------------------------
+    # 5️⃣ Terraform Apply
+    # -------------------------
     - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTask@5
       displayName: "Terraform Apply"
       inputs:
@@ -57,5 +70,7 @@ stages:
         vars: |
           public_key_path=/home/adarshmoger/.ssh/id_rsa.pub
           private_key_path=/home/adarshmoger/.ssh/id_rsa
-        varFiles: 'terraform.tfvars'
+        varFiles: |
+          terraform.tfvars
+        workingDirectory: '$(System.DefaultWorkingDirectory)'
 

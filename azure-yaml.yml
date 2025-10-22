@@ -7,7 +7,7 @@ stages:
   - job: TerraformJob
     displayName: "Deploy Azure Infrastructure"
     pool:
-      name: 'adarsh'  # your self-hosted agent name
+      name: 'adarsh'  # self-hosted agent name
 
     steps:
     # -------------------------
@@ -19,14 +19,15 @@ stages:
       displayName: "Checkout Terraform Repository"
 
     # -------------------------
-    # 2️⃣ Terraform Init
+    # 2️⃣ Terraform Init (with -reconfigure)
     # -------------------------
     - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTask@5
-      displayName: "Terraform Init"
+      displayName: "Terraform Init (Reconfigure)"
       inputs:
         provider: 'azurerm'
         command: 'init'
-        backendServiceArm: 'AzureARM'  # your existing service connection name
+        commandOptions: '-reconfigure'
+        backendServiceArm: 'AzureARM'  # your service connection name
         backendAzureRmResourceGroupName: 'OCEAN'
         backendAzureRmStorageAccountName: 'adarshmoger'
         backendAzureRmContainerName: 'maxi'

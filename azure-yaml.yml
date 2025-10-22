@@ -1,7 +1,7 @@
 trigger: none
 
 variables:
-- group: Terraform-SSH-Keys  # Library containing SSH_PRIVATE_KEY and SSH_PUBLIC_KEY
+- group: Terraform-SSH-Keys  # Contains SSH_PRIVATE_KEY and SSH_PUBLIC_KEY
 
 stages:
 - stage: Terraform
@@ -10,11 +10,21 @@ stages:
   - job: TerraformJob
     displayName: "Deploy Azure Resources"
     pool:
-      name: 'adarsh'  # Replace with your self-hosted agent pool name
+      name: 'adarsh'  # your self-hosted agent
 
     steps:
     - task: Checkout@1
       displayName: "Checkout GitHub Repository"
+
+    # Login to Azure using the service connection
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: 'AzureARM' # Replace with your service connectionz
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          echo "Logged into Azure via service connection"
+      displayName: "Azure Login"
 
     # Setup SSH Keys
     - script: |

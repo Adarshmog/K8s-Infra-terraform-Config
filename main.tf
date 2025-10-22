@@ -98,6 +98,7 @@ resource "azurerm_network_interface" "nic" {
 # ========================
 # Linux Virtual Machines with Docker & Kubernetes
 # ========================
+
 resource "azurerm_linux_virtual_machine" "vm" {
   count               = length(var.vm_names)
   name                = var.vm_names[count.index]
@@ -127,7 +128,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
   }
 
   # ------------------------
-  # Use cloud-init for Docker & Kubernetes
+  # Use cloud-init to install Docker & Kubernetes
   # ------------------------
   custom_data = base64encode(<<EOT
 #!/bin/bash
@@ -153,4 +154,5 @@ apt-get install -y kubelet kubeadm kubectl
 apt-mark hold kubelet kubeadm kubectl
 EOT
   )
+}  # <-- Closing brace for azurerm_linux_virtual_machine
 

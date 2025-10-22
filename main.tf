@@ -1,10 +1,14 @@
+# ========================
 # Resource Group
+# ========================
 resource "azurerm_resource_group" "rg" {
   name     = var.resource_group_name
   location = var.location
 }
 
+# ========================
 # Virtual Network
+# ========================
 resource "azurerm_virtual_network" "vnet" {
   name                = var.vnet_name
   location            = var.location
@@ -12,15 +16,9 @@ resource "azurerm_virtual_network" "vnet" {
   address_space       = ["10.0.0.0/16"]
 }
 
-# Subnet
-resource "azurerm_subnet" "subnet" {
-  name                 = var.subnet_name
-  resource_group_name  = azurerm_resource_group.rg.name
-  virtual_network_name = azurerm_virtual_network.vnet.name
-  address_prefixes     = ["10.0.1.0/24"]
-}
-
+# ========================
 # Network Security Group (allow SSH)
+# ========================
 resource "azurerm_network_security_group" "nsg" {
   name                = "${var.resource_group_name}-nsg"
   location            = var.location
@@ -39,7 +37,21 @@ resource "azurerm_network_security_group" "nsg" {
   }
 }
 
+# ========================
+# Subnet with NSG attached
+# ========================
+resource "azurerm_subnet" "subnet" {
+  name                 = var.subnet_name
+  resource_group_name  = azurerm_resource_group.rg.name
+  virtual_network_name = azurerm_virtual_network.vnet.name
+  address_prefixes     = ["10.0.1.0/24"]
+
+  network_security_group_id = azurerm_network_security_group.nsg.id
+}
+
+# ========================
 # Public IPs
+# ========================
 resource "azurerm_public_ip" "pip" {
   count               = length(var.vm_names)
   name                = "${var.vm_names[count.index]}-pip"
@@ -48,7 +60,9 @@ resource "azurerm_public_ip" "pip" {
   allocation_method   = "Static"
 }
 
+# ========================
 # Network Interfaces
+# ========================
 resource "azurerm_network_interface" "nic" {
   count               = length(var.vm_names)
   name                = "${var.vm_names[count.index]}-nic"
@@ -61,14 +75,11 @@ resource "azurerm_network_interface" "nic" {
     private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = azurerm_public_ip.pip[count.index].id
   }
-
-  # Correct NSG attachment
-  network_security_group {
-    id = azurerm_network_security_group.nsg.id
-  }
 }
 
-# Linux VMs
+# ========================
+# Linux Virtual Machines
+# ========================
 resource "azurerm_linux_virtual_machine" "vm" {
   count               = length(var.vm_names)
   name                = var.vm_names[count.index]
@@ -92,12 +103,14 @@ resource "azurerm_linux_virtual_machine" "vm" {
 
   source_image_reference {
     publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-jammy"
+    offer     = "0001-com-ubuntu-server-jammy"  # Ubuntu 22.04 LTS Gen2
     sku       = "22_04-lts-gen2"
     version   = "latest"
   }
 
+  # ========================
   # Provisioner to install Docker & Kubernetes
+  # ========================
   connection {
     type        = "ssh"
     user        = var.admin_username
@@ -111,7 +124,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
       "sudo apt-get update -y",
       "sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release",
 
-      # Install Docker
+      # Docker installation
       "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
       "echo 'deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable' | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
       "sudo apt-get update -y",
@@ -119,7 +132,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
       "sudo systemctl enable docker",
       "sudo systemctl start docker",
 
-      # Install Kubernetes
+      # Kubernetes installation
       "sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg",
       "echo 'deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main' | sudo tee /etc/apt/sources.list.d/kubernetes.list",
       "sudo apt-get update -y",
@@ -128,4 +141,3 @@ resource "azurerm_linux_virtual_machine" "vm" {
     ]
   }
 }
-

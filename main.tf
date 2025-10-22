@@ -62,7 +62,10 @@ resource "azurerm_network_interface" "nic" {
     public_ip_address_id          = azurerm_public_ip.pip[count.index].id
   }
 
-  network_security_group_id = azurerm_network_security_group.nsg.id
+  # Correct NSG attachment
+  network_security_group {
+    id = azurerm_network_security_group.nsg.id
+  }
 }
 
 # Linux VMs
@@ -87,13 +90,12 @@ resource "azurerm_linux_virtual_machine" "vm" {
     storage_account_type = "Standard_LRS"
   }
 
-source_image_reference {
-  publisher = "Canonical"
-  offer     = "0001-com-ubuntu-server-jammy"  # this is Ubuntu 22.04 LTS Gen2
-  sku       = "22_04-lts-gen2"
-  version   = "latest"
-}
-
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts-gen2"
+    version   = "latest"
+  }
 
   # Provisioner to install Docker & Kubernetes
   connection {
@@ -126,3 +128,4 @@ source_image_reference {
     ]
   }
 }
+

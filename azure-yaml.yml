@@ -1,8 +1,5 @@
 trigger: none
 
-variables:
-- group: Terraform-SSH-Keys  # Contains SSH_PRIVATE_KEY and SSH_PUBLIC_KEY
-
 stages:
 - stage: Terraform
   displayName: "Terraform Lifecycle"
@@ -19,20 +16,12 @@ stages:
     # Login to Azure using the service connection
     - task: AzureCLI@2
       inputs:
-        azureSubscription: 'AzureARM' # Replace with your service connectionz
+        azureSubscription: 'AzureARM'  # Your existing Azure service connection
         scriptType: 'bash'
         scriptLocation: 'inlineScript'
         inlineScript: |
           echo "Logged into Azure via service connection"
       displayName: "Azure Login"
-
-    # Setup SSH Keys
-    - script: |
-        echo "$(SSH_PRIVATE_KEY)" > ~/.ssh/id_rsa
-        echo "$(SSH_PUBLIC_KEY)" > ~/.ssh/id_rsa.pub
-        chmod 600 ~/.ssh/id_rsa
-        chmod 644 ~/.ssh/id_rsa.pub
-      displayName: "Setup SSH Keys"
 
     # Terraform Init
     - script: |
@@ -49,15 +38,15 @@ stages:
 
     # Terraform Plan
     - script: |
-        terraform plan -var "public_key_path=~/.ssh/id_rsa.pub" \
-                       -var "private_key_path=~/.ssh/id_rsa" \
+        terraform plan -var "public_key_path=/home/adarshmoger/.ssh/id_rsa.pub" \
+                       -var "private_key_path=/home/adarshmoger/.ssh/id_rsa" \
                        -var-file="terraform.tfvars"
       displayName: "Terraform Plan"
 
     # Terraform Apply
     - script: |
-        terraform apply -auto-approve -var "public_key_path=~/.ssh/id_rsa.pub" \
-                                      -var "private_key_path=~/.ssh/id_rsa" \
+        terraform apply -auto-approve -var "public_key_path=/home/adarshmoger/.ssh/id_rsa.pub" \
+                                      -var "private_key_path=/home/adarshmoger/.ssh/id_rsa" \
                                       -var-file="terraform.tfvars"
       displayName: "Terraform Apply"
 

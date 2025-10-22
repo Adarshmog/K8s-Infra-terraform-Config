@@ -1,0 +1,83 @@
+trigger: none
+
+variables:
+- group: Terraform-SSH-Keys   # Library with SSH_PRIVATE_KEY and SSH_PUBLIC_KEY
+
+stages:
+- stage: Terraform
+  displayName: "Terraform Lifecycle"
+  jobs:
+  - job: TerraformJob
+    displayName: "Deploy Azure Resources"
+    pool:
+      name : 'adarsh'
+
+    steps:
+    - task: Checkout@1
+      displayName: "Checkout Code"
+
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: '1.6.0'
+      displayName: "Install Terraform"
+
+    - script: |
+        echo "$(SSH_PRIVATE_KEY)" > ~/.ssh/id_rsa
+        echo "$(SSH_PUBLIC_KEY)" > ~/.ssh/id_rsa.pub
+        chmod 600 ~/.ssh/id_rsa
+        chmod 644 ~/.ssh/id_rsa.pub
+      displayName: "Setup SSH Keys"
+
+    # Terraform Init
+    - task: TerraformCLI@1
+      displayName: "Terraform Init"
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)'
+        backendType: 'azurerm'
+        ensureBackend: true
+        backendServiceArm: 'AzureARM'
+        backendAzureRmResourceGroupName: 'OCEAN'
+        backendAzureRmStorageAccountName: 'adarshmoger'
+        backendAzureRmContainerName: 'maxi'
+        backendAzureRmKey: 'k8sinfra.tfstate'
+
+    # Terraform Validate
+    - task: TerraformCLI@1
+      displayName: "Terraform Validate"
+      inputs:
+        provider: 'azurerm'
+        command: 'validate'
+        workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+    # Terraform Plan
+    - task: TerraformCLI@1
+      displayName: "Terraform Plan"
+      inputs:
+        provider: 'azurerm'
+        command: 'plan'
+        workingDirectory: '$(System.DefaultWorkingDirectory)'
+        environmentServiceName: 'AzureARM'
+        vars: |
+          public_key_path=~/.ssh/id_rsa.pub
+          private_key_path=~/.ssh/id_rsa
+        varFiles: |
+          terraform.tfvars
+
+    # Terraform Apply
+    - task: TerraformCLI@1
+      displayName: "Terraform Apply"
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        workingDirectory: '$(System.DefaultWorkingDirectory)'
+        environmentServiceName: 'AzureARM'
+        vars: |
+          public_key_path=~/.ssh/id_rsa.pub
+          private_key_path=~/.ssh/id_rsa
+        varFiles: |
+          terraform.tfvars
+        ensureBackend: true
+        autoApprove: true
+

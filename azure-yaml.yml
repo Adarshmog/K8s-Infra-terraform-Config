@@ -2,28 +2,22 @@ trigger: none
 
 stages:
 - stage: Terraform
-  displayName: "Terraform Lifecycle"
   jobs:
   - job: TerraformJob
-    displayName: "Deploy Azure Resources"
     pool:
-      name: 'adarsh'  # your self-hosted agent
+      name: 'adarsh'  # self-hosted agent
 
     steps:
     - task: Checkout@1
-      displayName: "Checkout GitHub Repository"
 
-    # Login to Azure using the service connection
     - task: AzureCLI@2
       inputs:
-        azureSubscription: 'AzureARM'  # Your existing Azure service connection
+        azureSubscription: 'AzureARM'  # your service connection
         scriptType: 'bash'
         scriptLocation: 'inlineScript'
         inlineScript: |
-          echo "Logged into Azure via service connection"
-      displayName: "Azure Login"
+          echo "Logged into Azure"
 
-    # Terraform Init
     - script: |
         terraform init -backend-config="resource_group_name=OCEAN" \
                        -backend-config="storage_account_name=adarshmoger" \
@@ -31,19 +25,15 @@ stages:
                        -backend-config="key=k8sinfra.tfstate"
       displayName: "Terraform Init"
 
-    # Terraform Validate
-    - script: |
-        terraform validate
+    - script: terraform validate
       displayName: "Terraform Validate"
 
-    # Terraform Plan
     - script: |
         terraform plan -var "public_key_path=/home/adarshmoger/.ssh/id_rsa.pub" \
                        -var "private_key_path=/home/adarshmoger/.ssh/id_rsa" \
                        -var-file="terraform.tfvars"
       displayName: "Terraform Plan"
 
-    # Terraform Apply
     - script: |
         terraform apply -auto-approve -var "public_key_path=/home/adarshmoger/.ssh/id_rsa.pub" \
                                       -var "private_key_path=/home/adarshmoger/.ssh/id_rsa" \

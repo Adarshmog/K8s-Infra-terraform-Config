@@ -20,6 +20,25 @@ resource "azurerm_subnet" "subnet" {
   address_prefixes     = ["10.0.1.0/24"]
 }
 
+# Network Security Group (allow SSH)
+resource "azurerm_network_security_group" "nsg" {
+  name                = "${var.resource_group_name}-nsg"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
+
+  security_rule {
+    name                       = "SSH"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range           = "*"
+    destination_port_range      = "22"
+    source_address_prefix       = "*"
+    destination_address_prefix  = "*"
+  }
+}
+
 # Public IPs
 resource "azurerm_public_ip" "pip" {
   count               = length(var.vm_names)
@@ -42,6 +61,8 @@ resource "azurerm_network_interface" "nic" {
     private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = azurerm_public_ip.pip[count.index].id
   }
+
+  network_security_group_id = azurerm_network_security_group.nsg.id
 }
 
 # Linux VMs
@@ -80,6 +101,7 @@ source_image_reference {
     user        = var.admin_username
     private_key = file(var.private_key_path)
     host        = azurerm_public_ip.pip[count.index].ip_address
+    timeout     = "15m"  # increased timeout for VM boot
   }
 
   provisioner "remote-exec" {

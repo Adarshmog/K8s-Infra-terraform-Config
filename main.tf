@@ -26,7 +26,7 @@ resource "azurerm_public_ip" "pip" {
   name                = "${var.vm_names[count.index]}-pip"
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
-  allocation_method   = "Dynamic"
+  allocation_method   = "Static"
 }
 
 # Network Interfaces

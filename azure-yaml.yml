@@ -1,7 +1,7 @@
 trigger: none
 
 variables:
-- group: Terraform-SSH-Keys   # Library with SSH_PRIVATE_KEY and SSH_PUBLIC_KEY
+- group: Terraform-SSH-Keys  # Library containing SSH_PRIVATE_KEY and SSH_PUBLIC_KEY
 
 stages:
 - stage: Terraform
@@ -10,17 +10,13 @@ stages:
   - job: TerraformJob
     displayName: "Deploy Azure Resources"
     pool:
-      name : 'adarsh'
+      name: 'adarsh'  # Replace with your self-hosted agent pool name
 
     steps:
     - task: Checkout@1
-      displayName: "Checkout Code"
+      displayName: "Checkout GitHub Repository"
 
-    - task: TerraformInstaller@1
-      inputs:
-        terraformVersion: '1.6.0'
-      displayName: "Install Terraform"
-
+    # Setup SSH Keys
     - script: |
         echo "$(SSH_PRIVATE_KEY)" > ~/.ssh/id_rsa
         echo "$(SSH_PUBLIC_KEY)" > ~/.ssh/id_rsa.pub
@@ -29,55 +25,29 @@ stages:
       displayName: "Setup SSH Keys"
 
     # Terraform Init
-    - task: TerraformCLI@1
+    - script: |
+        terraform init -backend-config="resource_group_name=OCEAN" \
+                       -backend-config="storage_account_name=adarshmoger" \
+                       -backend-config="container_name=maxi" \
+                       -backend-config="key=k8sinfra.tfstate"
       displayName: "Terraform Init"
-      inputs:
-        provider: 'azurerm'
-        command: 'init'
-        workingDirectory: '$(System.DefaultWorkingDirectory)'
-        backendType: 'azurerm'
-        ensureBackend: true
-        backendServiceArm: 'AzureARM'
-        backendAzureRmResourceGroupName: 'OCEAN'
-        backendAzureRmStorageAccountName: 'adarshmoger'
-        backendAzureRmContainerName: 'maxi'
-        backendAzureRmKey: 'k8sinfra.tfstate'
 
     # Terraform Validate
-    - task: TerraformCLI@1
+    - script: |
+        terraform validate
       displayName: "Terraform Validate"
-      inputs:
-        provider: 'azurerm'
-        command: 'validate'
-        workingDirectory: '$(System.DefaultWorkingDirectory)'
 
     # Terraform Plan
-    - task: TerraformCLI@1
+    - script: |
+        terraform plan -var "public_key_path=~/.ssh/id_rsa.pub" \
+                       -var "private_key_path=~/.ssh/id_rsa" \
+                       -var-file="terraform.tfvars"
       displayName: "Terraform Plan"
-      inputs:
-        provider: 'azurerm'
-        command: 'plan'
-        workingDirectory: '$(System.DefaultWorkingDirectory)'
-        environmentServiceName: 'AzureARM'
-        vars: |
-          public_key_path=~/.ssh/id_rsa.pub
-          private_key_path=~/.ssh/id_rsa
-        varFiles: |
-          terraform.tfvars
 
     # Terraform Apply
-    - task: TerraformCLI@1
+    - script: |
+        terraform apply -auto-approve -var "public_key_path=~/.ssh/id_rsa.pub" \
+                                      -var "private_key_path=~/.ssh/id_rsa" \
+                                      -var-file="terraform.tfvars"
       displayName: "Terraform Apply"
-      inputs:
-        provider: 'azurerm'
-        command: 'apply'
-        workingDirectory: '$(System.DefaultWorkingDirectory)'
-        environmentServiceName: 'AzureARM'
-        vars: |
-          public_key_path=~/.ssh/id_rsa.pub
-          private_key_path=~/.ssh/id_rsa
-        varFiles: |
-          terraform.tfvars
-        ensureBackend: true
-        autoApprove: true
 

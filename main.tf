@@ -118,33 +118,38 @@ resource "azurerm_linux_virtual_machine" "vm" {
   # ========================
   # Provisioner to install Docker & Kubernetes
   # ========================
-  connection {
-    type        = "ssh"
-    user        = var.admin_username
-    private_key = file(var.private_key_path)
-    host        = azurerm_public_ip.pip[count.index].ip_address
-    timeout     = "15m"  # increased timeout for VM boot
-  }
 
-  provisioner "remote-exec" {
-    inline = [
-      "sudo apt-get update -y",
-      "sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release",
-
-      # Docker installation
-      "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
-      "echo 'deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable' | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
-      "sudo apt-get update -y",
-      "sudo apt-get install -y docker-ce docker-ce-cli containerd.io",
-      "sudo systemctl enable docker",
-      "sudo systemctl start docker",
-
-      # Kubernetes installation
-      "sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg",
-      "echo 'deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main' | sudo tee /etc/apt/sources.list.d/kubernetes.list",
-      "sudo apt-get update -y",
-      "sudo apt-get install -y kubelet kubeadm kubectl",
-      "sudo apt-mark hold kubelet kubeadm kubectl"
-    ]
-  }
+connection {
+  type        = "ssh"
+  user        = var.admin_username
+  private_key = file(var.private_key_path)
+  host        = azurerm_public_ip.pip[count.index].ip_address
+  timeout     = "15m"
 }
+
+provisioner "remote-exec" {
+  inline = [
+    # wait for VM networking to be ready
+    "sleep 30",
+
+    # Update & install prerequisites with retries
+    "for i in {1..5}; do sudo apt-get update -y && break || sleep 10; done",
+    "for i in {1..5}; do sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release && break || sleep 10; done",
+
+    # Docker installation
+    "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
+    "echo 'deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable' | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
+    "sudo apt-get update -y",
+    "sudo apt-get install -y docker-ce docker-ce-cli containerd.io",
+    "sudo systemctl enable docker",
+    "sudo systemctl start docker",
+
+    # Kubernetes installation
+    "curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg",
+    "echo 'deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main' | sudo tee /etc/apt/sources.list.d/kubernetes.list",
+    "sudo apt-get update -y",
+    "sudo apt-get install -y kubelet kubeadm kubectl",
+    "sudo apt-mark hold kubelet kubeadm kubectl"
+  ]
+}
+

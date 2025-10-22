@@ -17,7 +17,7 @@ resource "azurerm_virtual_network" "vnet" {
 }
 
 # ========================
-# Network Security Group (allow SSH)
+# Network Security Group (allow SSH + outbound HTTP/HTTPS)
 # ========================
 resource "azurerm_network_security_group" "nsg" {
   name                = "${var.resource_group_name}-nsg"
@@ -32,6 +32,18 @@ resource "azurerm_network_security_group" "nsg" {
     protocol                   = "Tcp"
     source_port_range           = "*"
     destination_port_range      = "22"
+    source_address_prefix       = "*"
+    destination_address_prefix  = "*"
+  }
+
+  security_rule {
+    name                       = "AllowHTTPHTTPS"
+    priority                   = 110
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range           = "*"
+    destination_port_ranges     = ["80", "443"]
     source_address_prefix       = "*"
     destination_address_prefix  = "*"
   }
@@ -115,7 +127,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
   }
 
   # ------------------------
-  # Provisioner
+  # Connection & Remote-exec
   # ------------------------
   connection {
     type        = "ssh"
@@ -125,25 +137,26 @@ resource "azurerm_linux_virtual_machine" "vm" {
     timeout     = "15m"
   }
 
-provisioner "remote-exec" {
-  inline = [
-    "sleep 30", # wait for VM boot
-    "sudo apt-get clean",
-    "for i in {1..5}; do sudo apt-get update -y && break || sleep 10; done",
-    "for i in {1..5}; do sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release || sleep 10; done",
-    # Docker
-    "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
-    "echo 'deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable' | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
-    "sudo apt-get update -y",
-    "sudo apt-get install -y docker-ce docker-ce-cli containerd.io",
-    "sudo systemctl enable docker",
-    "sudo systemctl start docker",
-    # Kubernetes
-    "curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg",
-    "echo 'deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main' | sudo tee /etc/apt/sources.list.d/kubernetes.list",
-    "sudo apt-get update -y",
-    "sudo apt-get install -y kubelet kubeadm kubectl",
-    "sudo apt-mark hold kubelet kubeadm kubectl"
-  ]
+  provisioner "remote-exec" {
+    inline = [
+      "sleep 30", # wait for VM boot
+      "sudo apt-get clean",
+      "for i in {1..5}; do sudo apt-get update -y && break || sleep 10; done",
+      "for i in {1..5}; do sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release || sleep 10; done",
+      # Docker
+      "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
+      "echo 'deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable' | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
+      "sudo apt-get update -y",
+      "sudo apt-get install -y docker-ce docker-ce-cli containerd.io",
+      "sudo systemctl enable docker",
+      "sudo systemctl start docker",
+      # Kubernetes
+      "curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg",
+      "echo 'deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main' | sudo tee /etc/apt/sources.list.d/kubernetes.list",
+      "sudo apt-get update -y",
+      "sudo apt-get install -y kubelet kubeadm kubectl",
+      "sudo apt-mark hold kubelet kubeadm kubectl"
+    ]
+  }
 }
 

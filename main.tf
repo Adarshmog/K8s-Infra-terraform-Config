@@ -95,9 +95,6 @@ resource "azurerm_network_interface" "nic" {
   }
 }
 
-# ========================
-# Linux Virtual Machines with Docker & Kubernetes
-# ========================
 resource "azurerm_linux_virtual_machine" "vm" {
   count               = length(var.vm_names)
   name                = var.vm_names[count.index]
@@ -121,42 +118,32 @@ resource "azurerm_linux_virtual_machine" "vm" {
 
   source_image_reference {
     publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-jammy" # Ubuntu 22.04 LTS Gen2
+    offer     = "0001-com-ubuntu-server-jammy"
     sku       = "22_04-lts-gen2"
     version   = "latest"
   }
 
-  # ------------------------
-  # Connection & Remote-exec
-  # ------------------------
-  connection {
-    type        = "ssh"
-    user        = var.admin_username
-    private_key = file(var.private_key_path)
-    host        = azurerm_public_ip.pip[count.index].ip_address
-    timeout     = "15m"
-  }
+  # Use cloud-init to install Docker & Kubernetes reliably
+  custom_data = base64encode(<<-EOT
+    #!/bin/bash
+    set -e
+    apt-get update -y
+    apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
 
-  provisioner "remote-exec" {
-    inline = [
-      "sleep 30", # wait for VM boot
-      "sudo apt-get clean",
-      "for i in {1..5}; do sudo apt-get update -y && break || sleep 10; done",
-      "for i in {1..5}; do sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release || sleep 10; done",
-      # Docker
-      "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
-      "echo 'deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable' | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
-      "sudo apt-get update -y",
-      "sudo apt-get install -y docker-ce docker-ce-cli containerd.io",
-      "sudo systemctl enable docker",
-      "sudo systemctl start docker",
-      # Kubernetes
-      "curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg",
-      "echo 'deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main' | sudo tee /etc/apt/sources.list.d/kubernetes.list",
-      "sudo apt-get update -y",
-      "sudo apt-get install -y kubelet kubeadm kubectl",
-      "sudo apt-mark hold kubelet kubeadm kubectl"
-    ]
-  }
+    # Docker
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list
+    apt-get update -y
+    apt-get install -y docker-ce docker-ce-cli containerd.io
+    systemctl enable docker
+    systemctl start docker
+
+    # Kubernetes
+    curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | tee /etc/apt/sources.list.d/kubernetes.list
+    apt-get update -y
+    apt-get install -y kubelet kubeadm kubectl
+    apt-mark hold kubelet kubeadm kubectl
+  EOT)
 }
 

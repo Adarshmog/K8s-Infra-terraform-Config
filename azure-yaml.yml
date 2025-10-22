@@ -1,13 +1,13 @@
-trigger: none  # Run manually for cleanup
+trigger: none  # Run manually for now; you can enable CI/CD triggers later
 
 stages:
-- stage: TerraformDestroy
-  displayName: "Terraform Destroy Stage"
+- stage: Terraform
+  displayName: "Terraform Lifecycle"
   jobs:
-  - job: TerraformDestroyJob
-    displayName: "Destroy Existing Azure Infrastructure"
+  - job: TerraformJob
+    displayName: "Deploy Azure Infrastructure"
     pool:
-      name: 'adarsh'  # your self-hosted agent
+      name: 'adarsh'  # self-hosted agent name
 
     steps:
     # -------------------------
@@ -15,17 +15,18 @@ stages:
     # -------------------------
     - checkout: self
       clean: true
+      fetchTags: false
       displayName: "Checkout Terraform Repository"
 
     # -------------------------
-    # 2️⃣ Terraform Init (Reconfigure)
+    # 2️⃣ Terraform Init (with -reconfigure)
     # -------------------------
     - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTask@5
       displayName: "Terraform Init (Reconfigure)"
       inputs:
         provider: 'azurerm'
         command: 'init'
-        commandOptions: '-reconfigure -upgrade'
+        commandOptions: '-upgrade'
         backendServiceArm: 'AzureARM'  # your service connection name
         backendAzureRmResourceGroupName: 'OCEAN'
         backendAzureRmStorageAccountName: 'adarshmoger'
@@ -33,13 +34,38 @@ stages:
         backendAzureRmKey: 'k8sinfra.tfstate'
 
     # -------------------------
-    # 3️⃣ Terraform Destroy
+    # 3️⃣ Terraform Validate
     # -------------------------
     - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTask@5
-      displayName: "Terraform Destroy (Auto Approve)"
+      displayName: "Terraform Validate"
       inputs:
         provider: 'azurerm'
-        command: 'destroy'
+        command: 'validate'
+
+    # -------------------------
+    # 4️⃣ Terraform Plan
+    # -------------------------
+    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTask@5
+      displayName: "Terraform Plan"
+      inputs:
+        provider: 'azurerm'
+        command: 'plan'
+        environmentServiceNameAzureRM: 'AzureARM'
+        vars: |
+          public_key_path=/home/adarshmoger/.ssh/id_rsa.pub
+          private_key_path=/home/adarshmoger/.ssh/id_rsa
+        varFiles: |
+          terraform.tfvars
+        workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+    # -------------------------
+    # 5️⃣ Terraform Apply
+    # -------------------------
+    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTask@5
+      displayName: "Terraform Apply"
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
         environmentServiceNameAzureRM: 'AzureARM'
         commandOptions: '-auto-approve'
         vars: |
@@ -48,4 +74,5 @@ stages:
         varFiles: |
           terraform.tfvars
         workingDirectory: '$(System.DefaultWorkingDirectory)'
+
 

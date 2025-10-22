@@ -1,4 +1,4 @@
-location            = "eastus"
+location            = "Westus2"
 resource_group_name = "milkyway"
 vnet_name           = "interstellar"
 subnet_name         = "stellar"

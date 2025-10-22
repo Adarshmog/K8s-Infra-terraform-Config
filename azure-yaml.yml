@@ -26,7 +26,7 @@ stages:
       inputs:
         provider: 'azurerm'
         command: 'init'
-        commandOptions: '-upgrade'
+        commandOptions: '-reconfigure'
         backendServiceArm: 'AzureARM'  # your service connection name
         backendAzureRmResourceGroupName: 'OCEAN'
         backendAzureRmStorageAccountName: 'adarshmoger'

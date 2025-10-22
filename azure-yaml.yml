@@ -2,41 +2,60 @@ trigger: none
 
 stages:
 - stage: Terraform
+  displayName: "Terraform Lifecycle"
   jobs:
   - job: TerraformJob
+    displayName: "Deploy Azure Resources"
     pool:
       name: 'adarsh'  # self-hosted agent
 
     steps:
-    - task: Checkout@1
+    # Checkout the repository
+    - checkout: self
+      clean: true
+      fetchTags: false
 
-    - task: AzureCLI@2
-      inputs:
-        azureSubscription: 'AzureARM'  # your service connection
-        scriptType: 'bash'
-        scriptLocation: 'inlineScript'
-        inlineScript: |
-          echo "Logged into Azure"
-
-    - script: |
-        terraform init -backend-config="resource_group_name=OCEAN" \
-                       -backend-config="storage_account_name=adarshmoger" \
-                       -backend-config="container_name=maxi" \
-                       -backend-config="key=k8sinfra.tfstate"
+    # Terraform Init
+    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTask@5
       displayName: "Terraform Init"
+      inputs:
+        provider: 'azurerm'
+        backendServiceArm: 'AzureARM'
+        backendAzureRmResourceGroupName: 'OCEAN'
+        backendAzureRmStorageAccountName: 'adarshmoger'
+        backendAzureRmContainerName: 'maxi'
+        backendAzureRmKey: 'k8sinfra.tfstate'
+        command: 'init'
 
-    - script: terraform validate
+    # Terraform Validate
+    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTask@5
       displayName: "Terraform Validate"
+      inputs:
+        provider: 'azurerm'
+        command: 'validate'
 
-    - script: |
-        terraform plan -var "public_key_path=/home/adarshmoger/.ssh/id_rsa.pub" \
-                       -var "private_key_path=/home/adarshmoger/.ssh/id_rsa" \
-                       -var-file="terraform.tfvars"
+    # Terraform Plan
+    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTask@5
       displayName: "Terraform Plan"
+      inputs:
+        provider: 'azurerm'
+        command: 'plan'
+        environmentServiceNameAzureRM: 'AzureARM'
+        vars: |
+          public_key_path=/home/adarshmoger/.ssh/id_rsa.pub
+          private_key_path=/home/adarshmoger/.ssh/id_rsa
+        varFiles: 'terraform.tfvars'
 
-    - script: |
-        terraform apply -auto-approve -var "public_key_path=/home/adarshmoger/.ssh/id_rsa.pub" \
-                                      -var "private_key_path=/home/adarshmoger/.ssh/id_rsa" \
-                                      -var-file="terraform.tfvars"
+    # Terraform Apply
+    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTask@5
       displayName: "Terraform Apply"
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        environmentServiceNameAzureRM: 'AzureARM'
+        commandOptions: '-auto-approve'
+        vars: |
+          public_key_path=/home/adarshmoger/.ssh/id_rsa.pub
+          private_key_path=/home/adarshmoger/.ssh/id_rsa
+        varFiles: 'terraform.tfvars'
 
